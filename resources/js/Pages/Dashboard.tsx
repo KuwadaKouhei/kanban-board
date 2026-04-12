@@ -2,15 +2,21 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm } from '@inertiajs/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board } from '@/types';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import axios from 'axios';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 
 export default function Dashboard({ boards: initialBoards }: { boards: Board[] }) {
     const [boards, setBoards] = useState<Board[]>(initialBoards);
+
+    useEffect(() => {
+        setBoards(initialBoards);
+    }, [initialBoards]);
+
     const [showCreate, setShowCreate] = useState(false);
     const [editingBoard, setEditingBoard] = useState<Board | null>(null);
     const [deletingBoard, setDeletingBoard] = useState<Board | null>(null);
+    const [deletingBoardProcessing, setDeletingBoardProcessing] = useState(false);
 
     const createForm = useForm({ name: '', description: '' });
     const editForm = useForm({ name: '', description: '' });
@@ -62,9 +68,16 @@ export default function Dashboard({ boards: initialBoards }: { boards: Board[] }
     };
 
     const handleDelete = () => {
-        if (!deletingBoard) return;
+        if (!deletingBoard || deletingBoardProcessing) return;
+        setDeletingBoardProcessing(true);
         router.delete(`/boards/${deletingBoard.id}`, {
-            onSuccess: () => setDeletingBoard(null),
+            onSuccess: () => {
+                setDeletingBoard(null);
+                setDeletingBoardProcessing(false);
+            },
+            onError: () => {
+                setDeletingBoardProcessing(false);
+            },
         });
     };
 
@@ -266,6 +279,7 @@ export default function Dashboard({ boards: initialBoards }: { boards: Board[] }
                 open={!!deletingBoard}
                 title="ボード削除"
                 message={`「${deletingBoard?.name}」を削除しますか？配下のカラム・タスクもすべて削除されます。`}
+                processing={deletingBoardProcessing}
                 onConfirm={handleDelete}
                 onCancel={() => setDeletingBoard(null)}
             />
