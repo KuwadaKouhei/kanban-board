@@ -21,6 +21,7 @@ export default function Show({ board }: { board: Board }) {
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [deletingTask, setDeletingTask] = useState<Task | null>(null);
     const [deletingColumn, setDeletingColumn] = useState<Column | null>(null);
+    const [deletingColumnProcessing, setDeletingColumnProcessing] = useState(false);
     const [showAddColumn, setShowAddColumn] = useState(false);
 
     const { reorderTasks } = useTaskOperations();
@@ -98,10 +99,17 @@ export default function Show({ board }: { board: Board }) {
 
     // カラム削除
     const handleDeleteColumn = () => {
-        if (!deletingColumn) return;
+        if (!deletingColumn || deletingColumnProcessing) return;
+        setDeletingColumnProcessing(true);
         router.delete(`/columns/${deletingColumn.id}`, {
             preserveScroll: true,
-            onSuccess: () => setDeletingColumn(null),
+            onSuccess: () => {
+                setDeletingColumn(null);
+                setDeletingColumnProcessing(false);
+            },
+            onError: () => {
+                setDeletingColumnProcessing(false);
+            },
         });
     };
 
@@ -172,6 +180,7 @@ export default function Show({ board }: { board: Board }) {
                 open={!!deletingColumn}
                 title="カラム削除"
                 message={`「${deletingColumn?.name}」を削除しますか？カラム内のタスクもすべて削除されます。`}
+                processing={deletingColumnProcessing}
                 onConfirm={handleDeleteColumn}
                 onCancel={() => setDeletingColumn(null)}
             />

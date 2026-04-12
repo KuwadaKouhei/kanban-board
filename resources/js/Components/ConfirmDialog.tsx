@@ -2,11 +2,12 @@ interface Props {
     open: boolean;
     title: string;
     message: string;
+    processing?: boolean;
     onConfirm: () => void;
     onCancel: () => void;
 }
 
-export default function ConfirmDialog({ open, title, message, onConfirm, onCancel }: Props) {
+export default function ConfirmDialog({ open, title, message, processing, onConfirm, onCancel }: Props) {
     if (!open) return null;
 
     return (
@@ -17,15 +18,17 @@ export default function ConfirmDialog({ open, title, message, onConfirm, onCance
                 <div className="flex justify-end gap-3">
                     <button
                         onClick={onCancel}
-                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                        disabled={processing}
+                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
                     >
                         キャンセル
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+                        disabled={processing}
+                        className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
                     >
-                        削除
+                        {processing ? '削除中...' : '削除'}
                     </button>
                 </div>
             </div>
