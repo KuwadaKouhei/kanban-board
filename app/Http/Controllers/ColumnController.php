@@ -17,8 +17,11 @@ class ColumnController extends Controller
 
             $maxPosition = $board->columns()->max('position') ?? -1;
 
+            $validated = $request->validated();
+
             $board->columns()->create([
-                'name'     => $request->validated()['name'],
+                'name'     => $validated['name'],
+                'color'    => $validated['color'] ?? '#6B7280',
                 'position' => $maxPosition + 1,
             ]);
 

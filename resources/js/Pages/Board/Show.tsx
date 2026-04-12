@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm } from '@inertiajs/react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Task, TaskOrderPayload } from '@/types';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import KanbanColumn from './Partials/KanbanColumn';
 import CreateTaskModal from './Partials/CreateTaskModal';
 import EditTaskModal from './Partials/EditTaskModal';
@@ -11,14 +11,21 @@ import { useTaskOperations } from '@/hooks/useTaskOperations';
 
 export default function Show({ board }: { board: Board }) {
     const [columns, setColumns] = useState<Column[]>(board.columns);
+
+    // Inertia がページ props を更新したら columns state を同期
+    useEffect(() => {
+        setColumns(board.columns);
+    }, [board.columns]);
+
     const [createColumnId, setCreateColumnId] = useState<number | null>(null);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+    const [deletingColumn, setDeletingColumn] = useState<Column | null>(null);
     const [showAddColumn, setShowAddColumn] = useState(false);
 
     const { reorderTasks } = useTaskOperations();
 
-    const columnForm = useForm({ name: '' });
+    const columnForm = useForm({ name: '', color: '#6B7280' });
 
     // === ドラッグ&ドロップ完了ハンドラー（async/await + try-catch） ===
     const handleDragEnd = async (result: DropResult) => {
@@ -89,6 +96,15 @@ export default function Show({ board }: { board: Board }) {
         });
     };
 
+    // カラム削除
+    const handleDeleteColumn = () => {
+        if (!deletingColumn) return;
+        router.delete(`/columns/${deletingColumn.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setDeletingColumn(null),
+        });
+    };
+
     return (
         <AuthenticatedLayout
             header={
@@ -121,6 +137,7 @@ export default function Show({ board }: { board: Board }) {
                                 onAddTask={(colId) => setCreateColumnId(colId)}
                                 onEditTask={(task) => setEditingTask(task)}
                                 onDeleteTask={(task) => setDeletingTask(task)}
+                                onDeleteColumn={(col) => setDeletingColumn(col)}
                             />
                         ))}
                     </div>
@@ -141,13 +158,22 @@ export default function Show({ board }: { board: Board }) {
                 onClose={() => setEditingTask(null)}
             />
 
-            {/* 削除確認 */}
+            {/* タスク削除確認 */}
             <ConfirmDialog
                 open={!!deletingTask}
                 title="タスク削除"
                 message={`「${deletingTask?.title}」を削除しますか？`}
                 onConfirm={handleDeleteTask}
                 onCancel={() => setDeletingTask(null)}
+            />
+
+            {/* カラム削除確認 */}
+            <ConfirmDialog
+                open={!!deletingColumn}
+                title="カラム削除"
+                message={`「${deletingColumn?.name}」を削除しますか？カラム内のタスクもすべて削除されます。`}
+                onConfirm={handleDeleteColumn}
+                onCancel={() => setDeletingColumn(null)}
             />
 
             {/* カラム追加モーダル */}
@@ -167,6 +193,24 @@ export default function Show({ board }: { board: Board }) {
                                     className="w-full border rounded px-3 py-2"
                                     required
                                 />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium mb-1">
+                                    カラーを選択
+                                </label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {['#6B7280','#EF4444','#F97316','#EAB308','#22C55E','#3B82F6','#8B5CF6','#EC4899'].map((c) => (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => columnForm.setData('color', c)}
+                                            className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110
+                                                ${columnForm.data.color === c ? 'border-gray-800 scale-110' : 'border-transparent'}
+                                            `}
+                                            style={{ backgroundColor: c }}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                             <div className="flex justify-end gap-3">
                                 <button

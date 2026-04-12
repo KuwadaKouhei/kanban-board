@@ -1,23 +1,90 @@
 import { Droppable } from '@hello-pangea/dnd';
 import { Column, Task } from '@/types';
+import { useState } from 'react';
+import axios from 'axios';
 import TaskCard from './TaskCard';
+
+const PRESET_COLORS = [
+    '#6B7280', '#EF4444', '#F97316', '#EAB308',
+    '#22C55E', '#3B82F6', '#8B5CF6', '#EC4899',
+];
 
 interface Props {
     column: Column;
     onAddTask: (columnId: number) => void;
     onEditTask: (task: Task) => void;
     onDeleteTask: (task: Task) => void;
+    onDeleteColumn: (column: Column) => void;
 }
 
-export default function KanbanColumn({ column, onAddTask, onEditTask, onDeleteTask }: Props) {
+export default function KanbanColumn({ column, onAddTask, onEditTask, onDeleteTask, onDeleteColumn }: Props) {
+    const [showColorPicker, setShowColorPicker] = useState(false);
+    const [color, setColor] = useState(column.color || '#6B7280');
+
+    const handleColorChange = async (newColor: string) => {
+        const previousColor = color;
+        setColor(newColor);
+        setShowColorPicker(false);
+
+        try {
+            await axios.put(`/columns/${column.id}`, {
+                name: column.name,
+                color: newColor,
+            });
+        } catch {
+            setColor(previousColor);
+        }
+    };
+
     return (
         <div className="flex-shrink-0 w-80 bg-gray-100 rounded-lg flex flex-col max-h-full">
+            {/* カラーバー */}
+            <div
+                className="h-2 rounded-t-lg"
+                style={{ backgroundColor: color }}
+            />
+
             {/* ヘッダー */}
-            <div className="p-3 font-semibold text-sm flex items-center justify-between">
-                <span>{column.name}</span>
-                <span className="text-xs text-gray-400 bg-gray-200 rounded-full px-2 py-0.5">
-                    {column.tasks.length}
-                </span>
+            <div className="p-3 font-semibold text-sm flex items-center justify-between relative">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowColorPicker(!showColorPicker)}
+                        className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0"
+                        style={{ backgroundColor: color }}
+                        title="色を変更"
+                    />
+                    <span>{column.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 bg-gray-200 rounded-full px-2 py-0.5">
+                        {column.tasks.length}
+                    </span>
+                    <button
+                        onClick={() => onDeleteColumn(column)}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        title="カラムを削除"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* カラーピッカー */}
+                {showColorPicker && (
+                    <div className="absolute top-10 left-0 z-10 bg-white rounded-lg shadow-lg border p-2 flex gap-1 flex-wrap w-40">
+                        {PRESET_COLORS.map((c) => (
+                            <button
+                                key={c}
+                                onClick={() => handleColorChange(c)}
+                                className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110
+                                    ${color === c ? 'border-gray-800 scale-110' : 'border-transparent'}
+                                `}
+                                style={{ backgroundColor: c }}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* タスク追加ボタン */}

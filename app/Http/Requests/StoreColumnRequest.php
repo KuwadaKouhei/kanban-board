@@ -11,7 +11,8 @@ class StoreColumnRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
+            'name'  => 'required|string|max:255',
+            'color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
         ];
     }
 }
