@@ -3,6 +3,7 @@
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\BoardOrderController;
 use App\Http\Controllers\ColumnController;
+use App\Http\Controllers\ColumnOrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskOrderController;
@@ -43,6 +44,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ボード並び替え（Ajax）
     Route::put('/boards-reorder', [BoardOrderController::class, 'update'])
         ->name('boards.reorder');
+
+    // カラム並び替え（Ajax）
+    Route::put('/columns-reorder', [ColumnOrderController::class, 'update'])
+        ->name('columns.reorder');
 });
 
 Route::middleware('auth')->group(function () {

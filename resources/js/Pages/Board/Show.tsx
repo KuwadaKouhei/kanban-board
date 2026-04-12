@@ -1,8 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm } from '@inertiajs/react';
-import { DragDropContext, DropResult } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Task, TaskOrderPayload } from '@/types';
 import { FormEvent, useEffect, useState } from 'react';
+import axios from 'axios';
 import KanbanColumn from './Partials/KanbanColumn';
 import CreateTaskModal from './Partials/CreateTaskModal';
 import EditTaskModal from './Partials/EditTaskModal';
@@ -12,7 +13,6 @@ import { useTaskOperations } from '@/hooks/useTaskOperations';
 export default function Show({ board }: { board: Board }) {
     const [columns, setColumns] = useState<Column[]>(board.columns);
 
-    // Inertia がページ props を更新したら columns state を同期
     useEffect(() => {
         setColumns(board.columns);
     }, [board.columns]);
@@ -28,22 +28,46 @@ export default function Show({ board }: { board: Board }) {
 
     const columnForm = useForm({ name: '', color: '#6B7280' });
 
-    // === ドラッグ&ドロップ完了ハンドラー（async/await + try-catch） ===
+    // === ドラッグ&ドロップ完了ハンドラー ===
     const handleDragEnd = async (result: DropResult) => {
-        const { source, destination } = result;
+        const { source, destination, type } = result;
         if (!destination) return;
-        if (
-            source.droppableId === destination.droppableId &&
-            source.index === destination.index
-        ) return;
+        if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-        // ロールバック用に現在の状態を保持
-        const previousColumns = columns.map((c) => ({
-            ...c,
-            tasks: [...c.tasks],
-        }));
+        if (type === 'COLUMN') {
+            await handleColumnReorder(source.index, destination.index);
+        } else {
+            await handleTaskReorder(source, destination);
+        }
+    };
 
-        // ローカルで並び替え（楽観的 UI 更新）
+    // カラム並び替え（axios Ajax + async/await + try-catch）
+    const handleColumnReorder = async (srcIndex: number, dstIndex: number) => {
+        const previousColumns = [...columns];
+
+        const newColumns = [...columns];
+        const [moved] = newColumns.splice(srcIndex, 1);
+        newColumns.splice(dstIndex, 0, moved);
+        setColumns(newColumns);
+
+        try {
+            const payload = newColumns.map((col, idx) => ({
+                id: col.id,
+                position: idx,
+            }));
+            await axios.put('/columns-reorder', { columns: payload });
+        } catch {
+            setColumns(previousColumns);
+        }
+    };
+
+    // タスク並び替え（axios Ajax + async/await + try-catch）
+    const handleTaskReorder = async (
+        source: { droppableId: string; index: number },
+        destination: { droppableId: string; index: number },
+    ) => {
+        const previousColumns = columns.map((c) => ({ ...c, tasks: [...c.tasks] }));
+
         const srcColId = parseInt(source.droppableId.replace('column-', ''));
         const dstColId = parseInt(destination.droppableId.replace('column-', ''));
 
@@ -57,21 +81,15 @@ export default function Show({ board }: { board: Board }) {
 
         setColumns(newColumns);
 
-        // サーバーへ非同期送信（async/await + try-catch）
         try {
             const payload: TaskOrderPayload[] = [];
             newColumns.forEach((col) => {
                 col.tasks.forEach((task, idx) => {
-                    payload.push({
-                        id: task.id,
-                        column_id: col.id,
-                        position: idx,
-                    });
+                    payload.push({ id: task.id, column_id: col.id, position: idx });
                 });
             });
             await reorderTasks(payload);
         } catch {
-            // 失敗 → UI ロールバック
             setColumns(previousColumns);
         }
     };
@@ -137,18 +155,28 @@ export default function Show({ board }: { board: Board }) {
 
             <div className="h-[calc(100vh-8rem)] overflow-x-auto">
                 <DragDropContext onDragEnd={handleDragEnd}>
-                    <div className="flex gap-4 p-6 h-full items-start">
-                        {columns.map((column) => (
-                            <KanbanColumn
-                                key={column.id}
-                                column={column}
-                                onAddTask={(colId) => setCreateColumnId(colId)}
-                                onEditTask={(task) => setEditingTask(task)}
-                                onDeleteTask={(task) => setDeletingTask(task)}
-                                onDeleteColumn={(col) => setDeletingColumn(col)}
-                            />
-                        ))}
-                    </div>
+                    <Droppable droppableId="board-columns" direction="horizontal" type="COLUMN">
+                        {(provided) => (
+                            <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className="inline-flex gap-4 p-6 h-full items-start min-w-full justify-center"
+                            >
+                                {columns.map((column, index) => (
+                                    <KanbanColumn
+                                        key={column.id}
+                                        column={column}
+                                        index={index}
+                                        onAddTask={(colId) => setCreateColumnId(colId)}
+                                        onEditTask={(task) => setEditingTask(task)}
+                                        onDeleteTask={(task) => setDeletingTask(task)}
+                                        onDeleteColumn={(col) => setDeletingColumn(col)}
+                                    />
+                                ))}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
                 </DragDropContext>
             </div>
 
