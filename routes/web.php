@@ -1,22 +1,49 @@
 <?php
 
+use App\Http\Controllers\BoardController;
+use App\Http\Controllers\BoardOrderController;
+use App\Http\Controllers\ColumnController;
 use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskOrderController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return Inertia::render('Welcome');
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
+    // ダッシュボード（ボード一覧）
+    Route::get('/dashboard', [BoardController::class, 'index'])->name('dashboard');
+
+    // ボード CRUD
+    Route::resource('boards', BoardController::class)->except(['index', 'create', 'edit']);
+
+    // カラム
+    Route::post('/boards/{board}/columns', [ColumnController::class, 'store'])
+        ->name('columns.store');
+    Route::put('/columns/{column}', [ColumnController::class, 'update'])
+        ->name('columns.update');
+    Route::delete('/columns/{column}', [ColumnController::class, 'destroy'])
+        ->name('columns.destroy');
+
+    // タスク
+    Route::post('/columns/{column}/tasks', [TaskController::class, 'store'])
+        ->name('tasks.store');
+    Route::put('/tasks/{task}', [TaskController::class, 'update'])
+        ->name('tasks.update');
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])
+        ->name('tasks.destroy');
+
+    // タスク並び替え（Ajax）
+    Route::put('/tasks-reorder', [TaskOrderController::class, 'update'])
+        ->name('tasks.reorder');
+
+    // ボード並び替え（Ajax）
+    Route::put('/boards-reorder', [BoardOrderController::class, 'update'])
+        ->name('boards.reorder');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

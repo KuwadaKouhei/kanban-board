@@ -1,58 +1,163 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# KanbanBoard - カンバンボード タスク管理アプリ
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel + React + Inertia.js を使用したカンバンボード風のタスク管理アプリケーションです。
+ドラッグ&ドロップで直感的にタスクを管理できます。
 
-## About Laravel
+## 主要機能
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **ユーザー認証** - 登録・ログイン・ログアウト（Laravel Breeze）
+- **ボード管理** - ボードの作成・編集・削除
+- **カラム管理** - カラムの追加・名前変更・削除（デフォルト: Todo / In Progress / Done）
+- **タスク CRUD** - タスクの作成・表示・編集・削除
+- **ドラッグ&ドロップ** - タスクのカラム間移動・並び替え（楽観的 UI 更新）
+- **優先度管理** - 低 / 中 / 高 / 緊急の4段階
+- **期限管理** - 期限日の設定・期限切れ警告表示
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 技術スタック
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| レイヤー           | 技術                             |
+| ------------------ | -------------------------------- |
+| バックエンド       | Laravel 13 (PHP 8.4)             |
+| 認証               | Laravel Breeze                   |
+| フロントエンド     | React 18 + TypeScript            |
+| SPA 通信           | Inertia.js                       |
+| HTTP               | axios（D&D 並び替え Ajax 通信）  |
+| ドラッグ&ドロップ  | @hello-pangea/dnd                |
+| CSS                | Tailwind CSS                     |
+| ビルド             | Vite                             |
+| DB                 | SQLite                           |
 
-## Learning Laravel
+## スキル実証ポイント
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### try-catch（例外処理）
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- 全 Controller メソッドで DB 操作のエラーキャッチ + ログ出力
+- `BoardController@store` / `TaskOrderController@update` でトランザクション + rollBack
+- フロントエンドの `useTaskOperations` フックで async 関数内の try-catch + finally
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### Ajax 通信
 
-## Agentic Development
+#### axios による直接 Ajax 通信（画面遷移なし）
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+| ファイル | コード | 用途 |
+| --- | --- | --- |
+| `resources/js/Pages/Dashboard.tsx` | `axios.put('/boards-reorder', { boards: payload })` | ダッシュボードのボード並び替え |
+| `resources/js/hooks/useTaskOperations.ts` | `axios.put('/tasks-reorder', { tasks })` | カンバン画面のタスク並び替え |
+
+- サーバー側は `BoardOrderController` / `TaskOrderController` が `JsonResponse` を返す純粋な Ajax エンドポイント
+- 楽観的 UI 更新を行い、Ajax 通信が失敗した場合は UI をロールバック
+
+#### Inertia.js 経由の Ajax 通信（内部で XHR を使用）
+
+| ファイル | コード | 用途 |
+| --- | --- | --- |
+| `resources/js/hooks/useTaskOperations.ts` | `router.post`, `router.put`, `router.delete` | タスク作成・更新・削除 |
+| `resources/js/Pages/Dashboard.tsx` | `useForm.post`, `useForm.put` | ボード作成・編集 |
+| `resources/js/Pages/Board/Partials/CreateTaskModal.tsx` | `useForm.post` | タスク作成フォーム送信 |
+| `resources/js/Pages/Board/Partials/EditTaskModal.tsx` | `useForm.put` | タスク編集フォーム送信 |
+
+- Inertia の `router` / `useForm` は内部的に XMLHttpRequest（Ajax）でサーバーと通信し、ページ全体のリロードなしでデータを送受信する
+
+### async/await（非同期処理）
+
+- `useTaskOperations.ts` で Inertia router を Promise 化 + await
+- `axios.put` を await で非同期通信
+- `Board/Show.tsx` の `handleDragEnd` で楽観的 UI 更新 + 失敗時ロールバック
+
+## セットアップ
+
+### 前提条件
+
+- PHP 8.4+
+- Composer
+- Node.js 22+
+- npm
+
+### インストール
 
 ```bash
-composer require laravel/boost --dev
+# リポジトリをクローン
+git clone https://github.com/KuwadaKouhei/kanban-board.git
+cd kanban-board
 
-php artisan boost:install
+# PHP 依存パッケージ
+composer install
+
+# Node.js 依存パッケージ
+npm install
+
+# 環境設定
+cp .env.example .env
+php artisan key:generate
+
+# データベース作成 & マイグレーション
+php artisan migrate
+
+# (任意) テストデータ投入
+php artisan db:seed --class=DefaultBoardSeeder
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 起動
 
-## Contributing
+ターミナルを2つ開いて実行:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+# ターミナル 1 - Laravel サーバー
+php artisan serve
 
-## Code of Conduct
+# ターミナル 2 - Vite 開発サーバー
+npm run dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+ブラウザで <http://localhost:8000> にアクセス。
 
-## Security Vulnerabilities
+### テストアカウント
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+シーダー実行済みの場合:
 
-## License
+| 項目         | 値                 |
+| ------------ | ------------------ |
+| メール       | `test@example.com` |
+| パスワード   | password           |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## ディレクトリ構成（主要部分）
+
+```
+kanban-board/
+├── app/
+│   ├── Http/Controllers/
+│   │   ├── BoardController.php        # ボード CRUD
+│   │   ├── ColumnController.php       # カラム CRUD
+│   │   ├── TaskController.php         # タスク CRUD
+│   │   └── TaskOrderController.php    # D&D 並び替え API
+│   ├── Http/Requests/                 # バリデーション
+│   ├── Models/                        # Board / Column / Task
+│   └── Policies/                      # BoardPolicy（認可）
+├── database/
+│   ├── migrations/                    # テーブル定義
+│   └── seeders/                       # テストデータ
+├── resources/js/
+│   ├── Pages/
+│   │   ├── Welcome.tsx                # ホーム画面
+│   │   ├── Dashboard.tsx              # ボード一覧
+│   │   └── Board/
+│   │       ├── Show.tsx               # カンバン画面
+│   │       └── Partials/              # モーダル・カード・カラム
+│   ├── Components/                    # 共通 UI
+│   └── hooks/
+│       └── useTaskOperations.ts       # async/await + try-catch
+└── routes/web.php                     # ルート定義
+```
+
+## DB 構成
+
+```
+users 1 ─── * boards 1 ─── * columns 1 ─── * tasks
+```
+
+| テーブル | 説明 |
+|----------|------|
+| users | ユーザー（Breeze デフォルト） |
+| boards | ボード（name, description） |
+| columns | カラム（name, position, color） |
+| tasks | タスク（title, description, priority, due_date, position） |
