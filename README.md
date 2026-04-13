@@ -122,7 +122,7 @@ npm run dev
 
 ## ディレクトリ構成（主要部分）
 
-```
+```text
 kanban-board/
 ├── app/
 │   ├── Http/Controllers/
@@ -151,12 +151,12 @@ kanban-board/
 
 ## DB 構成
 
-```
+```text
 users 1 ─── * boards 1 ─── * columns 1 ─── * tasks
 ```
 
 | テーブル | 説明 |
-|----------|------|
+| -------- | ---- |
 | users | ユーザー（Breeze デフォルト） |
 | boards | ボード（name, description） |
 | columns | カラム（name, position, color） |
