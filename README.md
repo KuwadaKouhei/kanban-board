@@ -161,3 +161,5 @@ users 1 ─── * boards 1 ─── * columns 1 ─── * tasks
 | boards | ボード（name, description） |
 | columns | カラム（name, position, color） |
 | tasks | タスク（title, description, priority, due_date, position） |
+
+詳細なER図（Mermaid）・テーブル定義・リレーションシップについては [docs/er-diagram.md](docs/er-diagram.md) を参照してください。
